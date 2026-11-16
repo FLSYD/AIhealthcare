@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.aihealthcare.dao.NotificationDao">
+    <resultMap id="notification" type="com.aaa.aihealthcare.vo.NotificationVO">
+        <id column="id" property="id"/>
+        <result column="type" property="type"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="biz_type" property="bizType"/>
+        <result column="biz_id" property="bizId"/>
+        <result column="read_flag" property="read" javaType="boolean"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+    <select id="selectByUser" resultMap="notification">
+        SELECT id, type, title, content, biz_type, biz_id, read_flag, create_time
+        FROM user_notification WHERE user_id = #{userId}
+        <if test="unreadOnly">AND read_flag = 0</if>
+        ORDER BY create_time DESC, id DESC
+    </select>
+    <select id="countUnread" resultType="long">
+        SELECT COUNT(*) FROM user_notification WHERE user_id = #{userId} AND read_flag = 0
+    </select>
+    <select id="existsForUser" resultType="boolean">
+        SELECT COUNT(*) &gt; 0 FROM user_notification WHERE id = #{id} AND user_id = #{userId}
+    </select>
+    <update id="markRead">
+        UPDATE user_notification SET read_flag = 1
+        WHERE id = #{id} AND user_id = #{userId} AND read_flag = 0
+    </update>
+    <update id="markAllRead">
+        UPDATE user_notification SET read_flag = 1 WHERE user_id = #{userId} AND read_flag = 0
+    </update>
+    <insert id="insertForUser">
+        INSERT INTO user_notification (user_id, type, title, content, biz_type, biz_id, read_flag, create_time)
+        SELECT id, #{type}, #{title}, #{content}, #{bizType}, #{bizId}, 0, NOW()
+        FROM sys_user WHERE id = #{userId} AND deleted = 0 AND status = 1
+    </insert>
+    <insert id="insertForDoctor">
+        INSERT INTO user_notification (user_id, type, title, content, biz_type, biz_id, read_flag, create_time)
+        SELECT id, #{type}, #{title}, #{content}, #{bizType}, #{bizId}, 0, NOW()
+        FROM sys_user WHERE doctor_id = #{doctorId} AND role = 'DOCTOR' AND deleted = 0 AND status = 1
+    </insert>
+    <insert id="insertForAppointmentDoctor">
+        INSERT INTO user_notification (user_id, type, title, content, biz_type, biz_id, read_flag, create_time)
+        SELECT u.id, #{type}, #{title}, #{content}, 'appointment', #{appointmentId}, 0, NOW()
+        FROM sys_user u JOIN schedule s ON s.doctor_id = u.doctor_id
+        JOIN appointment a ON a.schedule_id = s.id
+        WHERE a.id = #{appointmentId} AND u.role = 'DOCTOR' AND u.deleted = 0 AND u.status = 1
+    </insert>
+    <!-- 配药队列由药师共享，仅向账号、人员档案和配药科均有效的接收人发送消息。 -->
+    <insert id="insertForPharmacists">
+        INSERT INTO user_notification (user_id, type, title, content, biz_type, biz_id, read_flag, create_time)
+        SELECT u.id, #{type}, #{title}, #{content}, 'prescription', #{prescriptionId}, 0, NOW()
+        FROM sys_user u
+        JOIN doctor d ON d.id = u.doctor_id
+        JOIN department dep ON dep.id = d.department_id
+        WHERE u.role = 'PHARMACIST' AND u.deleted = 0 AND u.status = 1
+          AND d.role_type = 'PHARMACIST' AND d.status = 1
+          AND dep.type = 'PHARMACY' AND dep.status = 1
+    </insert>
+</mapper>

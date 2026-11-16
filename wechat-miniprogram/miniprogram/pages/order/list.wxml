@@ -1,0 +1,30 @@
+<view class="page page--tab order-list">
+  <page-nav title="我的订单" back="{{ false }}" />
+  <van-tabs active="{{ activeTab }}" color="#00B894" scrollable bind:change="onTabChange">
+    <van-tab wx:for="{{ tabs }}" wx:key="key" name="{{ item.key }}" title="{{ item.title }}" />
+  </van-tabs>
+  <scroll-view class="order-list__scroll" scroll-y lower-threshold="80" bindscrolltolower="onReachBottom">
+    <view class="order-list__content">
+      <order-card
+        wx:for="{{ orders }}"
+        wx:key="id"
+        order="{{ item }}"
+        bind:select="onOrderTap"
+        bind:action="onOrderAction"
+      />
+      <view wx:if="{{ !loggedIn }}" class="order-list__login-hint">
+        <empty-state description="请先登录后查看订单" />
+        <van-button type="primary" round size="small" custom-class="btn-primary" bind:click="onGoLogin">去登录</van-button>
+      </view>
+      <view wx:elif="{{ loading && !orders.length }}" class="order-list__tip">加载中...</view>
+      <view wx:elif="{{ loadError && !orders.length }}" class="order-list__tip order-list__tip--link" bindtap="onRetry">加载失败，点击重试</view>
+      <empty-state wx:elif="{{ loaded && !orders.length && !hasMore }}" description="{{ emptyText }}" />
+      <view wx:elif="{{ loaded && !orders.length && hasMore }}" class="order-list__tip order-list__tip--link" bindtap="onReachBottom">本页无匹配订单，点击加载更多</view>
+      <block wx:if="{{ loggedIn && orders.length }}">
+        <view wx:if="{{ loadingMore }}" class="order-list__tip">加载中...</view>
+        <view wx:elif="{{ loadError }}" class="order-list__tip order-list__tip--link" bindtap="onRetry">加载失败，点击重试</view>
+        <view wx:elif="{{ !hasMore }}" class="order-list__tip">没有更多订单了</view>
+      </block>
+    </view>
+  </scroll-view>
+</view>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--药品写操作与医生开方共用药品行锁，避免删除、改库存和处方明细并发冲突。 -->
+<mapper namespace="com.aaa.aihealthcare.dao.MedicineDao">
+
+    <select id="selectByIdForUpdate" resultType="com.aaa.aihealthcare.entity.Medicine">
+        SELECT id, name, spec, unit, price, stock, usage_desc, status, create_time, update_time
+        FROM medicine
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <!-- 使用锁定当前读，避免 REPEATABLE READ 的旧快照漏掉刚提交的付款。 -->
+    <select id="selectPaidQuantitiesForUpdate" resultType="int">
+        SELECT i.quantity
+        FROM prescription_item i
+        JOIN prescription p ON p.id = i.prescription_id
+        WHERE i.medicine_id = #{medicineId} AND p.status = 'paid'
+        ORDER BY p.id ASC, i.id ASC
+        FOR UPDATE
+    </select>
+
+    <select id="countPrescriptionItemByMedicineId" resultType="int">
+        SELECT COUNT(1)
+        FROM prescription_item
+        WHERE medicine_id = #{medicineId}
+    </select>
+
+</mapper>

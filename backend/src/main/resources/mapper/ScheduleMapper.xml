@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.aihealthcare.dao.ScheduleDao">
+
+    <select id="selectPageWithDoctor" resultType="com.aaa.aihealthcare.vo.ScheduleVO">
+        SELECT s.id, s.doctor_id, s.schedule_date, s.time_slot,
+               s.total_quota, s.booked_count, s.status, s.create_time, s.update_time,
+               doc.name AS doctor_name, doc.title AS title,
+               dep.name AS department_name,
+               (SELECT COUNT(*) FROM appointment a WHERE a.schedule_id = s.id) AS appointment_count
+        FROM schedule s
+        LEFT JOIN doctor doc ON doc.id = s.doctor_id
+        LEFT JOIN department dep ON dep.id = doc.department_id
+        <where>
+            <if test="doctorId != null">
+                AND s.doctor_id = #{doctorId}
+            </if>
+            <if test="startDate != null">
+                AND s.schedule_date &gt;= #{startDate}
+            </if>
+            <if test="endDate != null">
+                AND s.schedule_date &lt;= #{endDate}
+            </if>
+        </where>
+        ORDER BY s.schedule_date ASC, s.time_slot ASC, s.id ASC
+    </select>
+
+    <select id="selectByIdForUpdate" resultType="com.aaa.aihealthcare.entity.Schedule">
+        SELECT id, doctor_id, schedule_date, time_slot, total_quota, booked_count,
+               status, create_time, update_time
+        FROM schedule
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <select id="selectAppointmentIdsByScheduleIdForUpdate" resultType="java.lang.Long">
+        SELECT id
+        FROM appointment
+        WHERE schedule_id = #{scheduleId}
+        ORDER BY id
+        FOR UPDATE
+    </select>
+
+    <select id="countUnfinishedAppointments" resultType="long">
+        SELECT COUNT(*) FROM appointment
+        WHERE schedule_id = #{scheduleId}
+          AND status NOT IN ('cancelled', 'completed')
+    </select>
+
+    <update id="updateWithoutBookedCount">
+        UPDATE schedule
+        SET doctor_id = #{schedule.doctorId},
+            schedule_date = #{schedule.scheduleDate},
+            time_slot = #{schedule.timeSlot},
+            total_quota = #{schedule.totalQuota},
+            status = #{schedule.status},
+            update_time = #{schedule.updateTime}
+        WHERE id = #{schedule.id}
+    </update>
+
+</mapper>

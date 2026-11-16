@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.aihealthcare.dao.DoctorDao">
+
+    <select id="selectPageWithDepartment" resultType="com.aaa.aihealthcare.vo.DoctorVO">
+        SELECT d.id, d.department_id, d.name, d.role_type, d.title, d.gender,
+               d.avatar, d.intro, d.status, d.create_time, d.update_time,
+               dep.name AS department_name,
+               u.username AS username
+        FROM doctor d
+        LEFT JOIN department dep ON dep.id = d.department_id
+        LEFT JOIN sys_user u ON u.id = (
+            SELECT MIN(u2.id)
+            FROM sys_user u2
+            WHERE u2.doctor_id = d.id
+              AND u2.deleted = 0
+              AND u2.role IN ('DOCTOR', 'PHARMACIST')
+        )
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (d.name LIKE CONCAT('%', #{keyword}, '%')
+                     OR EXISTS (
+                         SELECT 1
+                         FROM sys_user su
+                         WHERE su.doctor_id = d.id
+                           AND su.deleted = 0
+                           AND su.role IN ('DOCTOR', 'PHARMACIST')
+                           AND su.username LIKE CONCAT('%', #{keyword}, '%')
+                     ))
+            </if>
+            <if test="departmentId != null">
+                AND d.department_id = #{departmentId}
+            </if>
+        </where>
+        ORDER BY d.id ASC
+    </select>
+
+    <select id="selectByIdForUpdate" resultType="com.aaa.aihealthcare.entity.Doctor">
+        SELECT id, department_id, name, role_type, title, gender, avatar, intro, status, create_time, update_time
+        FROM doctor
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <select id="selectEnabledDepartmentForUpdate" resultType="com.aaa.aihealthcare.entity.Department">
+        SELECT dep.id, dep.status, dep.type
+        FROM doctor d
+        JOIN department dep ON dep.id = d.department_id
+        WHERE d.id = #{doctorId}
+          AND dep.status = 1
+        FOR UPDATE
+    </select>
+
+    <select id="selectDepartmentForUpdate" resultType="com.aaa.aihealthcare.entity.Department">
+        SELECT dep.id, dep.status, dep.type
+        FROM doctor d JOIN department dep ON dep.id = d.department_id
+        WHERE d.id = #{doctorId} FOR UPDATE
+    </select>
+
+    <update id="updateIntro">
+        UPDATE doctor
+        SET intro = #{intro,jdbcType=VARCHAR}, update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateAvatar">
+        UPDATE doctor
+        SET avatar = #{avatar}, update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <select id="countSchedulesByDoctorId" resultType="long">
+        SELECT COUNT(1)
+        FROM schedule
+        WHERE doctor_id = #{doctorId}
+    </select>
+
+    <!-- 只统计未删除的账号：软删除账号仍保留 doctor_id，
+         若一并计入会让医生档案永远无法删除。 -->
+    <select id="countUserReferencesByDoctorId" resultType="long">
+        SELECT COUNT(1)
+        FROM sys_user
+        WHERE doctor_id = #{doctorId} AND deleted = 0
+    </select>
+
+</mapper>

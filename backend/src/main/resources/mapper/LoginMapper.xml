@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.aihealthcare.dao.LoginDao">
+    <resultMap id="LoginUserMap" type="com.aaa.aihealthcare.entity.SysUser" autoMapping="true">
+        <id column="id" property="id"/>
+        <result column="doctor_id" property="doctorId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+    <select id="getByUsername" resultMap="LoginUserMap">
+        SELECT * FROM sys_user WHERE username = #{username} AND deleted = 0
+    </select>
+    <select id="getById" resultMap="LoginUserMap">
+        SELECT * FROM sys_user WHERE id = #{id} AND deleted = 0
+    </select>
+    <!-- 包含停用、逻辑删除账号和人员档案，避免回收仍被历史资料引用的图片。 -->
+    <select id="selectAvatarReferences" resultType="string">
+        SELECT avatar FROM sys_user WHERE avatar IS NOT NULL
+        UNION SELECT avatar FROM doctor WHERE avatar IS NOT NULL
+    </select>
+    <!-- 个人资料只允许更新这三个字段，身份与权限字段由服务端控制。 -->
+    <update id="updateProfile">
+        UPDATE sys_user
+        <set>
+            <if test="nickname != null">nickname = #{nickname},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            update_time = CURRENT_TIMESTAMP
+        </set>
+        WHERE id = #{id} AND deleted = 0 AND status = 1
+    </update>
+    <update id="updateAvatar">
+        UPDATE sys_user SET avatar = #{avatar}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND deleted = 0 AND status = 1
+    </update>
+    <!-- 比较旧散列，避免并发改密时用过期密码覆盖新的密码。 -->
+    <update id="changePassword">
+        UPDATE sys_user SET password = #{newHash}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND password = #{oldHash} AND deleted = 0 AND status = 1
+    </update>
+</mapper>

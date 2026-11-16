@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 菜单写操作由服务层按统一顺序加锁，读列表保持无锁。 -->
+<mapper namespace="com.aaa.aihealthcare.dao.MenuDao">
+    <resultMap id="SysMenuResultMap" type="com.aaa.aihealthcare.entity.SysMenu" autoMapping="true">
+        <id column="id" property="id"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="sort_order" property="sortOrder"/>
+    </resultMap>
+
+    <select id="selectAll" resultMap="SysMenuResultMap">
+        SELECT id, parent_id, name, path, icon, sort_order, roles
+        FROM sys_menu
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <select id="selectByIdForUpdate" resultMap="SysMenuResultMap">
+        SELECT id, parent_id, name, path, icon, sort_order, roles
+        FROM sys_menu
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <select id="selectAllForUpdate" resultMap="SysMenuResultMap">
+        SELECT id, parent_id, name, path, icon, sort_order, roles
+        FROM sys_menu
+        ORDER BY id ASC
+        FOR UPDATE
+    </select>
+
+    <select id="selectByIdsForUpdate" resultMap="SysMenuResultMap">
+        SELECT id, parent_id, name, path, icon, sort_order, roles
+        FROM sys_menu
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY id ASC
+        FOR UPDATE
+    </select>
+</mapper>

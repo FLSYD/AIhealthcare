@@ -1,0 +1,9 @@
+<view class="page visit-record">
+  <page-nav title="就诊病历" />
+  <view class="visit-record__body">
+    <loading-skeleton wx:if="{{ loading }}" rows="{{ 5 }}" loading="{{ true }}" />
+    <empty-state wx:elif="{{ loadError }}" description="病历加载失败，请返回后重试" />
+    <empty-state wx:elif="{{ empty }}" description="暂无病历" />
+    <detail-list wx:else items="{{ items }}" />
+  </view>
+</view>

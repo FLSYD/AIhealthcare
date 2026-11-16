@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--预约管理：单表写操作走 MyBatis-Plus，此处放多表联查。 -->
+<mapper namespace="com.aaa.aihealthcare.dao.AppointmentDao">
+
+    <sql id="detailColumns">
+        a.id, a.user_id, a.schedule_id, a.patient_name, a.patient_phone, a.id_card,
+        a.amount, a.pay_method, a.pay_time, a.status, a.remark, a.create_time, a.update_time,
+        s.schedule_date, s.time_slot, s.status AS schedule_status,
+        d.name AS doctor_name,
+        dep.name AS department_name,
+        p.id AS prescription_id, p.status AS prescription_status, p.total_amount AS prescription_amount
+    </sql>
+
+    <select id="selectPageWithDetail" resultType="com.aaa.aihealthcare.vo.AppointmentVO">
+        SELECT
+        <include refid="detailColumns"/>
+        FROM appointment a
+        JOIN schedule s ON s.id = a.schedule_id
+        JOIN doctor d ON d.id = s.doctor_id
+        JOIN department dep ON dep.id = d.department_id
+        LEFT JOIN prescription p ON p.appointment_id = a.id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (a.patient_name LIKE CONCAT('%', #{keyword}, '%')
+                     OR a.patient_phone LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND a.status = #{status}
+            </if>
+            <if test="scheduleDate != null and scheduleDate != ''">
+                AND s.schedule_date = #{scheduleDate}
+            </if>
+        </where>
+        ORDER BY s.schedule_date DESC, s.time_slot DESC, a.id DESC
+    </select>
+
+    <select id="selectDetailById" resultType="com.aaa.aihealthcare.vo.AppointmentVO">
+        SELECT
+        <include refid="detailColumns"/>
+        FROM appointment a
+        JOIN schedule s ON s.id = a.schedule_id
+        JOIN doctor d ON d.id = s.doctor_id
+        JOIN department dep ON dep.id = d.department_id
+        LEFT JOIN prescription p ON p.appointment_id = a.id
+        WHERE a.id = #{id}
+    </select>
+
+    <update id="releaseScheduleQuota">
+        UPDATE schedule
+        SET booked_count = GREATEST(booked_count - 1, 0),
+            update_time  = NOW()
+        WHERE id = #{scheduleId}
+    </update>
+
+    <select id="selectByIdForUpdate" resultType="com.aaa.aihealthcare.entity.Appointment">
+        SELECT * FROM appointment WHERE id = #{id} FOR UPDATE
+    </select>
+
+    <select id="selectExpiredUnpaidIds" resultType="java.lang.Long">
+        SELECT id FROM appointment
+        WHERE status = 'unpaid' AND pay_time IS NULL AND create_time &lt;= #{cutoff}
+          AND id &gt; #{afterId}
+        ORDER BY id LIMIT #{limit}
+    </select>
+
+    <select id="selectUserBalanceForUpdate" resultType="java.math.BigDecimal">
+        SELECT balance FROM sys_user WHERE id = #{userId} FOR UPDATE
+    </select>
+
+    <update id="refundBalance">
+        UPDATE sys_user SET balance = balance + #{amount}, update_time = NOW()
+        WHERE id = #{userId} AND balance + #{amount} &lt;= 99999999.99
+    </update>
+
+    <insert id="insertRefundLog">
+        INSERT INTO balance_log
+            (user_id, type, amount, balance_after, order_id, pay_method, remark, create_time)
+        VALUES
+            (#{userId}, 'order_refund', #{amount}, #{balanceAfter}, #{appointmentId}, 'balance', '取消预约退还挂号费', NOW())
+    </insert>
+
+    <update id="updateStatusIfCurrent">
+        UPDATE appointment SET status = #{newStatus}, update_time = NOW()
+        WHERE id = #{id} AND status = #{oldStatus}
+    </update>
+
+    <select id="countVerifiedMockPayment" resultType="long">
+        SELECT COUNT(*) FROM balance_log
+        WHERE user_id=#{appointment.userId} AND order_id=#{appointment.id}
+        AND type='mock_order_pay' AND amount=#{appointment.amount}
+        AND pay_method=#{appointment.payMethod} AND remark='学习模拟挂号付款'
+    </select>
+    <insert id="insertMockRefundLog">
+        INSERT INTO balance_log(user_id,type,amount,balance_after,order_id,pay_method,remark,create_time)
+        SELECT id,'mock_order_refund',#{appointment.amount},balance,#{appointment.id},
+               #{appointment.payMethod},'学习模拟挂号退款（不变更余额）',NOW()
+        FROM sys_user WHERE id=#{appointment.userId}
+    </insert>
+
+</mapper>

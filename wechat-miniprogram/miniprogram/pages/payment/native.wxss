@@ -1,0 +1,123 @@
+.native-page {
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.native-content {
+  padding: 24rpx 32rpx calc(220rpx + env(safe-area-inset-bottom));
+}
+
+.native-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.native-amount__tag {
+  padding: 4rpx 20rpx;
+  border-radius: 24rpx;
+  font-size: 22rpx;
+  color: #fff;
+  background: linear-gradient(135deg, #4ade80, #16a34a);
+}
+
+.native-amount__value {
+  font-size: 56rpx;
+  font-weight: 700;
+  color: var(--color-primary);
+  line-height: 1.2;
+}
+
+.native-amount__hint {
+  font-size: 24rpx;
+  color: var(--color-text-secondary);
+}
+
+.native-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.native-qr__image {
+  width: 440rpx;
+  height: 440rpx;
+}
+
+.native-qr__failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  width: 440rpx;
+  height: 440rpx;
+  font-size: 26rpx;
+  color: var(--color-text-secondary);
+}
+
+.native-qr__tip {
+  font-size: 24rpx;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.native-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  text-align: center;
+}
+
+.native-status__title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.native-status__desc,
+.native-status__net {
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.native-status--success .native-status__title { color: var(--color-success); }
+.native-status--warning .native-status__title { color: var(--color-warning); }
+.native-status--danger .native-status__title { color: var(--color-danger); }
+
+.native-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  text-align: center;
+}
+
+.native-link__title {
+  font-size: 28rpx;
+  color: var(--color-text);
+}
+
+.native-link__desc {
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.native-actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  padding: 16rpx 32rpx;
+  background: var(--color-surface);
+  box-shadow: 0 -4rpx 24rpx rgba(0, 0, 0, 0.06);
+}

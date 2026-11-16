@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.aihealthcare.dao.DoctorConsultationDao">
+
+    <resultMap id="consultationRecordMap" type="com.aaa.aihealthcare.entity.ConsultationRecord">
+        <id column="id" property="id"/>
+        <result column="appointment_id" property="appointmentId"/>
+        <result column="doctor_id" property="doctorId"/>
+        <result column="chief_complaint" property="chiefComplaint"/>
+        <result column="present_illness" property="presentIllness"/>
+        <result column="diagnosis" property="diagnosis"/>
+        <result column="treatment_plan" property="treatmentPlan"/>
+        <result column="doctor_advice" property="medicalAdvice"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="prescriptionItemMap" type="com.aaa.aihealthcare.entity.PrescriptionItem">
+        <id column="id" property="id"/>
+        <result column="prescription_id" property="prescriptionId"/>
+        <result column="medicine_id" property="medicineId"/>
+        <result column="medicine_name" property="medicineName"/>
+        <result column="spec" property="spec"/>
+        <result column="dosage" property="dosage"/>
+        <result column="frequency" property="frequency"/>
+        <result column="days" property="days"/>
+        <result column="quantity" property="quantity"/>
+        <result column="unit_price" property="unitPrice"/>
+        <result column="amount" property="amount"/>
+    </resultMap>
+
+    <select id="selectAppointmentForUpdate" resultType="com.aaa.aihealthcare.vo.AppointmentVO">
+        SELECT a.id, a.user_id, a.schedule_id, a.status
+        FROM appointment a
+        JOIN schedule s ON s.id = a.schedule_id
+        WHERE a.id = #{appointmentId}
+          AND s.doctor_id = #{doctorId}
+        FOR UPDATE
+    </select>
+
+    <!-- 配药师发药：不限定开方医生，仅按预约 id 加锁。 -->
+    <select id="selectAppointmentForUpdateByPharmacy" resultType="com.aaa.aihealthcare.vo.AppointmentVO">
+        SELECT a.id, a.user_id, a.schedule_id, a.status
+        FROM appointment a
+        WHERE a.id = #{appointmentId}
+        FOR UPDATE
+    </select>
+
+    <sql id="recordColumns">
+        id, appointment_id, doctor_id, chief_complaint, present_illness,
+        diagnosis, treatment_plan, doctor_advice, create_time, update_time
+    </sql>
+
+    <select id="selectRecord" resultMap="consultationRecordMap">
+        SELECT <include refid="recordColumns"/>
+        FROM consultation_record
+        WHERE appointment_id = #{appointmentId} AND doctor_id = #{doctorId}
+        ORDER BY id DESC LIMIT 1
+    </select>
+
+    <select id="selectRecordForUpdate" resultMap="consultationRecordMap">
+        SELECT id, appointment_id, doctor_id, chief_complaint, present_illness,
+               diagnosis, treatment_plan, doctor_advice, create_time, update_time
+        FROM consultation_record
+        WHERE appointment_id = #{appointmentId}
+          AND doctor_id = #{doctorId}
+        ORDER BY id DESC
+        LIMIT 1 FOR UPDATE
+    </select>
+
+    <select id="selectPrescriptions" resultType="com.aaa.aihealthcare.entity.Prescription">
+        SELECT id, appointment_id, user_id, doctor_id, total_amount, status,
+               pay_method, pay_time, create_time, update_time
+        FROM prescription
+        WHERE appointment_id = #{appointmentId}
+        ORDER BY id ASC
+    </select>
+
+    <select id="selectPrescriptionsForUpdate" resultType="com.aaa.aihealthcare.entity.Prescription">
+        SELECT id, appointment_id, user_id, doctor_id, total_amount, status,
+               pay_method, pay_time, create_time, update_time
+        FROM prescription
+        WHERE appointment_id = #{appointmentId}
+        ORDER BY id ASC
+        FOR UPDATE
+    </select>
+
+    <select id="selectItems" resultMap="prescriptionItemMap">
+        SELECT id, prescription_id, medicine_id, medicine_name, spec, dosage,
+               frequency, days, quantity, unit_price, amount
+        FROM prescription_item
+        WHERE prescription_id = #{prescriptionId}
+        ORDER BY medicine_id ASC, id ASC
+    </select>
+
+    <select id="selectItemsForUpdate" resultMap="prescriptionItemMap">
+        SELECT id, prescription_id, medicine_id, medicine_name, spec, dosage,
+               frequency, days, quantity, unit_price, amount
+        FROM prescription_item
+        WHERE prescription_id = #{prescriptionId}
+        ORDER BY medicine_id ASC, id ASC
+        FOR UPDATE
+    </select>
+
+    <select id="selectMedicinesForUpdate" resultType="com.aaa.aihealthcare.entity.Medicine">
+        SELECT id, name, spec, unit, price, stock, usage_desc, status, create_time, update_time
+        FROM medicine
+        WHERE id IN
+        <foreach collection="medicineIds" item="medicineId" open="(" separator="," close=")">
+            #{medicineId}
+        </foreach>
+        ORDER BY id ASC
+        FOR UPDATE
+    </select>
+
+    <insert id="insertRecord" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO consultation_record
+            (appointment_id, doctor_id, chief_complaint, present_illness,
+             diagnosis, treatment_plan, doctor_advice)
+        VALUES
+            (#{appointmentId}, #{doctorId}, #{chiefComplaint}, #{presentIllness},
+             #{diagnosis}, #{treatmentPlan}, #{medicalAdvice})
+    </insert>
+
+    <update id="updateRecord">
+        UPDATE consultation_record
+        SET chief_complaint = #{chiefComplaint},
+            present_illness = #{presentIllness},
+            diagnosis = #{diagnosis},
+            treatment_plan = #{treatmentPlan},
+            doctor_advice = #{medicalAdvice},
+            update_time = NOW()
+        WHERE id = #{id}
+          AND appointment_id = #{appointmentId}
+          AND doctor_id = #{doctorId}
+    </update>
+
+    <insert id="insertItem" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO prescription_item
+            (prescription_id, medicine_id, medicine_name, spec, dosage, frequency,
+             days, quantity, unit_price, amount)
+        VALUES
+            (#{prescriptionId}, #{medicineId}, #{medicineName}, #{spec}, #{dosage},
+             #{frequency}, #{days}, #{quantity}, #{unitPrice}, #{amount})
+    </insert>
+
+    <update id="updateAppointmentStatus">
+        UPDATE appointment
+        SET status = #{newStatus},
+            update_time = NOW()
+        WHERE id = #{appointmentId}
+          AND schedule_id IN (SELECT id FROM schedule WHERE doctor_id = #{doctorId})
+          AND status IN
+        <foreach collection="expectedStatuses" item="expectedStatus" open="(" separator="," close=")">
+            #{expectedStatus}
+        </foreach>
+    </update>
+
+    <update id="deductMedicineStock">
+        UPDATE medicine
+        SET stock = stock - #{quantity},
+            update_time = NOW()
+        WHERE id = #{medicineId}
+          AND status = 1
+          AND stock &gt;= #{quantity}
+    </update>
+
+    <update id="updatePrescriptionToDispensed">
+        UPDATE prescription
+        SET status = 'dispensed',
+            update_time = NOW()
+        WHERE id = #{prescriptionId}
+          AND appointment_id = #{appointmentId}
+          AND user_id = #{userId}
+          AND doctor_id = #{doctorId}
+          AND status = 'paid'
+    </update>
+
+    <!-- 配药师发药：不按开方医生过滤，其余条件与医生通道保持一致。 -->
+    <update id="updatePrescriptionToDispensedForPharmacy">
+        UPDATE prescription
+        SET status = 'dispensed',
+            update_time = NOW()
+        WHERE id = #{prescriptionId}
+          AND appointment_id = #{appointmentId}
+          AND user_id = #{userId}
+          AND status = 'paid'
+    </update>
+
+    <!-- 配药师发药：仅按预约与期望状态更新，不限定排班所属医生。 -->
+    <update id="updateAppointmentStatusForPharmacy">
+        UPDATE appointment
+        SET status = #{newStatus},
+            update_time = NOW()
+        WHERE id = #{appointmentId}
+          AND status IN
+        <foreach collection="expectedStatuses" item="expectedStatus" open="(" separator="," close=")">
+            #{expectedStatus}
+        </foreach>
+    </update>
+
+</mapper>

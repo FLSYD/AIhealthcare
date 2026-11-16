@@ -1,0 +1,9 @@
+{
+  "usingComponents": {
+    "page-nav": "/components/page-nav/page-nav",
+    "detail-list": "/components/detail-list/detail-list",
+    "empty-state": "/components/empty-state/empty-state",
+    "loading-skeleton": "/components/loading-skeleton/loading-skeleton"
+  },
+  "navigationStyle": "custom"
+}

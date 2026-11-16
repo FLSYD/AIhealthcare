@@ -1,0 +1,4 @@
+# 可保持空值以使用后台与公共查询；真实微信登录需配置使用者自己的小程序凭据。
+# AppID 应与两份 project.config.json 中的小程序 AppID 一致。
+healthcare.wechat.app-id=${WECHAT_APP_ID:}
+healthcare.wechat.app-secret=${WECHAT_APP_SECRET:}

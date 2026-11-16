@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.aihealthcare.dao.SysUserDao">
+    <resultMap id="SysUserResultMap" type="com.aaa.aihealthcare.entity.SysUser" autoMapping="true">
+        <id column="id" property="id"/>
+        <result column="doctor_id" property="doctorId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+    <select id="selectByUsername" resultMap="SysUserResultMap">
+        SELECT * FROM sys_user WHERE username = #{username}
+    </select>
+    <select id="getById" resultMap="SysUserResultMap">
+        SELECT * FROM sys_user WHERE id = #{id} AND deleted = 0
+    </select>
+    <!-- 配合服务事务串行处理同一账号的修改，避免旧状态覆盖后续禁用结果。 -->
+    <select id="getByIdForUpdate" resultMap="SysUserResultMap">
+        SELECT * FROM sys_user WHERE id = #{id} AND deleted = 0 FOR UPDATE
+    </select>
+    <!-- 所有用户写操作先锁定启用管理员集合，建立跨实例一致的全局锁顺序。 -->
+    <select id="lockActiveAdminIds" resultType="java.lang.Long">
+        SELECT id FROM sys_user
+        WHERE role = 'ADMIN' AND status = 1 AND deleted = 0
+        ORDER BY id
+        FOR UPDATE
+    </select>
+    <select id="selectDoctorAccountsForUpdate" resultMap="SysUserResultMap">
+        SELECT *
+        FROM sys_user
+        WHERE doctor_id = #{doctorId}
+          AND role IN ('DOCTOR', 'PHARMACIST')
+          AND deleted = 0
+        ORDER BY id
+        FOR UPDATE
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_user (username, password, nickname, email, phone, role, status, doctor_id, create_time, update_time)
+        VALUES (#{username}, #{password}, #{nickname}, #{email}, #{phone}, #{role}, #{status}, #{doctorId}, #{createTime}, #{updateTime})
+    </insert>
+    <update id="update">
+        UPDATE sys_user
+        <set>
+            <if test="password != null">password = #{password},</if>
+            <if test="nickname != null">nickname = #{nickname},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="role != null">role = #{role},</if>
+            <if test="status != null">status = #{status},</if>
+            <choose>
+                <!-- 医生与配药师都可关联医生档案；只有改成其他角色才解除绑定 -->
+                <when test="role != null and role != 'DOCTOR' and role != 'PHARMACIST'">doctor_id = NULL,</when>
+                <when test="doctorId != null">doctor_id = #{doctorId},</when>
+            </choose>
+            update_time = #{updateTime}
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+    <update id="delete">
+        UPDATE sys_user
+        SET deleted = 1, status = 0, update_time = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+    <update id="batchDelete">
+        UPDATE sys_user
+        SET deleted = 1, status = 0, update_time = NOW()
+        WHERE deleted = 0 AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+    <update id="updateDoctorAccountStatus">
+        UPDATE sys_user
+        SET status = #{status}, update_time = #{updateTime}
+        WHERE doctor_id = #{doctorId}
+          AND role IN ('DOCTOR', 'PHARMACIST')
+          AND deleted = 0
+          AND (status IS NULL OR status &lt;&gt; #{status})
+    </update>
+    <select id="queryByCondition" resultMap="SysUserResultMap">
+        SELECT * FROM sys_user WHERE deleted = 0
+        <if test="sysUser.keyword != null and sysUser.keyword != ''">
+            AND (username LIKE CONCAT('%', #{sysUser.keyword}, '%')
+                OR nickname LIKE CONCAT('%', #{sysUser.keyword}, '%')
+                OR email LIKE CONCAT('%', #{sysUser.keyword}, '%'))
+        </if>
+        <if test="sysUser.username != null and sysUser.username != ''">AND username = #{sysUser.username}</if>
+        <if test="sysUser.email != null and sysUser.email != ''">AND email = #{sysUser.email}</if>
+        <if test="sysUser.phone != null and sysUser.phone != ''">AND phone = #{sysUser.phone}</if>
+        <if test="sysUser.role != null and sysUser.role != ''">AND role = #{sysUser.role}</if>
+        <if test="sysUser.status != null">AND status = #{sysUser.status}</if>
+        <if test="sysUser.createTime != null">AND create_time = #{sysUser.createTime}</if>
+        <if test="sysUser.updateTime != null">AND update_time = #{sysUser.updateTime}</if>
+        ORDER BY create_time DESC, id DESC
+    </select>
+</mapper>

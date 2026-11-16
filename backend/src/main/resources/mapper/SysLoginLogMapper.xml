@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--班级表全是单表操作，已全部交给MyBatis-Plus的BaseMapper完成，此处无需再写SQL。
+后续如果出现班级的关联查询（多表），再在这里补充即可。
+-->
+<mapper namespace="com.aaa.aihealthcare.dao.SysLoginLogDao">
+
+</mapper>

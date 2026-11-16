@@ -1,0 +1,12 @@
+# 数据目录与随机口令由 setup-local.ps1 填充；不要将实际配置提交到仓库。
+bind 127.0.0.1
+port 16379
+protected-mode yes
+requirepass __REDIS_PASSWORD__
+dir "__REDIS_DATA_DIR__"
+dbfilename dump.rdb
+appendonly yes
+appendfilename "appendonly.aof"
+save 900 1
+save 300 10
+save 60 10000

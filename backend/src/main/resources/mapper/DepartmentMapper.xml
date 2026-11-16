@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--科室写操作由服务层按统一锁顺序串行执行。 -->
+<mapper namespace="com.aaa.aihealthcare.dao.DepartmentDao">
+
+    <select id="selectByIdForUpdate" resultType="com.aaa.aihealthcare.entity.Department">
+        SELECT id, name, type, description, location, sort_order, status, create_time, update_time
+        FROM department
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+</mapper>

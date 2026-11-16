@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.aihealthcare.dao.MiniAuthDao">
+    <resultMap id="MiniAuthUserMap" type="com.aaa.aihealthcare.entity.SysUser" autoMapping="true">
+        <id column="id" property="id"/>
+        <result column="doctor_id" property="doctorId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByUsername" resultMap="MiniAuthUserMap">
+        SELECT * FROM sys_user WHERE username = #{username} AND deleted = 0
+    </select>
+
+    <!-- 包含软删行，防止同一 openid 通过新建账号绕过停用或删除状态。 -->
+    <select id="selectByOpenidForUpdate" resultMap="MiniAuthUserMap">
+        SELECT * FROM sys_user WHERE openid = #{openid} FOR UPDATE
+    </select>
+
+    <insert id="insertWechatUser">
+        INSERT INTO sys_user (
+            username, password, nickname, avatar, openid, balance, doctor_id,
+            status, role, deleted, create_time, update_time
+        ) VALUES (
+            #{username}, #{passwordHash}, #{nickname}, NULL, #{openid}, 0.00, NULL,
+            1, 'USER', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="updateAvatarForActiveUser">
+        UPDATE sys_user
+        SET avatar = #{avatar}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND deleted = 0 AND status = 1
+    </update>
+</mapper>

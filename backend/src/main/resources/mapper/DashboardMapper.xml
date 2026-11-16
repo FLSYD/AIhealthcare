@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--数据概览的聚合统计 SQL。单表 CRUD 走 MyBatis-Plus，这里只放跨表统计。 -->
+<mapper namespace="com.aaa.aihealthcare.dao.DashboardDao">
+
+    <select id="countTodayAppointments" resultType="long">
+        SELECT COUNT(1)
+        FROM appointment a
+                 JOIN schedule s ON a.schedule_id = s.id
+        WHERE s.schedule_date = #{today}
+          AND a.status &lt;&gt; 'cancelled'
+    </select>
+
+    <select id="countAppointments" resultType="long">
+        SELECT COUNT(1) FROM appointment
+    </select>
+
+    <select id="countActiveDoctors" resultType="long">
+        SELECT COUNT(1) FROM doctor WHERE status = 1 AND role_type = 'DOCTOR'
+    </select>
+
+    <select id="countPatients" resultType="long">
+        SELECT COUNT(1) FROM sys_user WHERE role = 'USER' AND deleted = 0
+    </select>
+
+    <select id="countAppointmentsByDay" resultType="com.aaa.aihealthcare.vo.NameValueVO">
+        SELECT DATE_FORMAT(DATE(create_time), '%Y-%m-%d') AS name,
+               COUNT(1) AS value
+        FROM appointment
+        WHERE create_time &gt;= #{startDate}
+          AND create_time &lt; DATE_ADD(#{endDate}, INTERVAL 1 DAY)
+        GROUP BY DATE_FORMAT(DATE(create_time), '%Y-%m-%d')
+        ORDER BY name
+    </select>
+
+    <select id="countByStatus" resultType="com.aaa.aihealthcare.vo.NameValueVO">
+        SELECT status AS name,
+               COUNT(1) AS value
+        FROM appointment
+        GROUP BY status
+        ORDER BY value DESC
+    </select>
+
+    <select id="countByDepartment" resultType="com.aaa.aihealthcare.vo.NameValueVO">
+        SELECT d.name AS name,
+               COUNT(1) AS value
+        FROM appointment a
+                 JOIN schedule s ON a.schedule_id = s.id
+                 JOIN doctor dr ON s.doctor_id = dr.id
+                 JOIN department d ON dr.department_id = d.id
+        GROUP BY d.id, d.name
+        ORDER BY value DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="countByRating" resultType="com.aaa.aihealthcare.vo.NameValueVO">
+        SELECT CAST(rating AS CHAR) AS name,
+               COUNT(1) AS value
+        FROM appointment_review
+        GROUP BY rating
+        ORDER BY rating
+    </select>
+
+</mapper>

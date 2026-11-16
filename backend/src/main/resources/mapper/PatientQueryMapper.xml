@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.aihealthcare.dao.PatientQueryDao">
+
+    <!-- 患者端只展示临床科室：配药科不参与挂号。 -->
+    <select id="selectActiveDepartments" resultType="com.aaa.aihealthcare.entity.Department">
+        SELECT id, name, type, description, location, sort_order, status, create_time, update_time
+        FROM department
+        WHERE status = 1
+          AND type = 'CLINICAL'
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <select id="selectActiveDoctors" resultType="com.aaa.aihealthcare.vo.PatientDoctorVO">
+        SELECT doc.id, doc.department_id, doc.name, doc.title, doc.gender, doc.avatar,
+               doc.intro, doc.status, doc.create_time, doc.update_time,
+               dep.name AS department_name,
+               reviews.rating,
+               COALESCE(reviews.review_count, 0) AS review_count,
+               COALESCE(visits.consult_count, 0) AS consult_count
+        FROM doctor doc
+        JOIN department dep ON dep.id = doc.department_id AND dep.status = 1 AND dep.type = 'CLINICAL'
+        LEFT JOIN (
+            SELECT doctor_id, ROUND(AVG(rating), 1) AS rating, COUNT(*) AS review_count
+            FROM appointment_review
+            GROUP BY doctor_id
+        ) reviews ON reviews.doctor_id = doc.id
+        LEFT JOIN (
+            SELECT s.doctor_id, COUNT(*) AS consult_count
+            FROM appointment a
+            JOIN schedule s ON s.id = a.schedule_id
+            WHERE a.status = 'completed'
+            GROUP BY s.doctor_id
+        ) visits ON visits.doctor_id = doc.id
+        WHERE doc.status = 1
+          AND doc.role_type = 'DOCTOR'
+        <if test="departmentId != null">
+            AND doc.department_id = #{departmentId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (doc.name LIKE CONCAT('%', #{keyword}, '%')
+                 OR doc.title LIKE CONCAT('%', #{keyword}, '%')
+                 OR dep.name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY doc.id ASC
+    </select>
+
+    <select id="selectActiveDoctorById" resultType="com.aaa.aihealthcare.vo.PatientDoctorVO">
+        SELECT doc.id, doc.department_id, doc.name, doc.title, doc.gender, doc.avatar,
+               doc.intro, doc.status, doc.create_time, doc.update_time,
+               dep.name AS department_name,
+               reviews.rating,
+               COALESCE(reviews.review_count, 0) AS review_count,
+               COALESCE(visits.consult_count, 0) AS consult_count
+        FROM doctor doc
+        JOIN department dep ON dep.id = doc.department_id AND dep.status = 1 AND dep.type = 'CLINICAL'
+        LEFT JOIN (
+            SELECT doctor_id, ROUND(AVG(rating), 1) AS rating, COUNT(*) AS review_count
+            FROM appointment_review
+            GROUP BY doctor_id
+        ) reviews ON reviews.doctor_id = doc.id
+        LEFT JOIN (
+            SELECT s.doctor_id, COUNT(*) AS consult_count
+            FROM appointment a
+            JOIN schedule s ON s.id = a.schedule_id
+            WHERE a.status = 'completed'
+            GROUP BY s.doctor_id
+        ) visits ON visits.doctor_id = doc.id
+        WHERE doc.id = #{id}
+          AND doc.status = 1
+          AND doc.role_type = 'DOCTOR'
+    </select>
+
+    <sql id="patientScheduleColumns">
+        s.id, s.doctor_id, s.schedule_date, s.time_slot,
+        s.total_quota, s.booked_count,
+        GREATEST(s.total_quota - s.booked_count, 0) AS remain_quota,
+        s.status
+    </sql>
+
+    <select id="selectPatientSchedules" resultType="com.aaa.aihealthcare.vo.PatientScheduleVO">
+        SELECT <include refid="patientScheduleColumns"/>
+        FROM schedule s
+        JOIN doctor doc ON doc.id = s.doctor_id AND doc.status = 1 AND doc.role_type = 'DOCTOR'
+        JOIN department dep ON dep.id = doc.department_id AND dep.status = 1 AND dep.type = 'CLINICAL'
+        WHERE s.doctor_id = #{doctorId}
+          AND s.schedule_date = #{scheduleDate}
+          AND s.status = 1
+        ORDER BY s.time_slot ASC, s.id ASC
+    </select>
+
+    <select id="selectBookableScheduleWindows" resultType="com.aaa.aihealthcare.vo.PatientScheduleVO">
+        SELECT <include refid="patientScheduleColumns"/>
+        FROM schedule s
+        JOIN doctor doc ON doc.id = s.doctor_id AND doc.status = 1 AND doc.role_type = 'DOCTOR'
+        JOIN department dep ON dep.id = doc.department_id AND dep.status = 1 AND dep.type = 'CLINICAL'
+        WHERE s.schedule_date BETWEEN #{startDate} AND #{endDate}
+          AND s.status = 1
+          AND s.booked_count &lt; s.total_quota
+        <if test="doctorId != null">
+            AND s.doctor_id = #{doctorId}
+        </if>
+        ORDER BY s.doctor_id ASC, s.schedule_date ASC, s.time_slot ASC, s.id ASC
+    </select>
+
+    <sql id="patientAppointmentColumns">
+        a.id, a.schedule_id, a.patient_name, a.patient_phone, a.id_card,
+        a.amount, a.pay_method, a.pay_time,
+        CASE WHEN a.status = 'pending_pickup' THEN 'pending_rx_pay' ELSE a.status END AS status,
+        a.remark, a.create_time, a.update_time,
+        s.schedule_date, s.time_slot,
+        doc.id AS doctor_id, doc.name AS doctor_name, doc.title AS doctor_title,
+        dep.id AS department_id, dep.name AS department_name,
+        p.id AS prescription_id, p.status AS prescription_status,
+        p.total_amount AS prescription_amount,
+        EXISTS (
+            SELECT 1 FROM consultation_record cr
+            WHERE cr.appointment_id = a.id
+        ) AS has_consultation,
+        EXISTS (
+            SELECT 1 FROM appointment_review ar
+            WHERE ar.appointment_id = a.id AND ar.user_id = a.user_id
+        ) AS evaluated
+    </sql>
+
+    <select id="selectPatientAppointments" resultType="com.aaa.aihealthcare.vo.PatientAppointmentVO">
+        SELECT <include refid="patientAppointmentColumns"/>
+        FROM appointment a
+        JOIN schedule s ON s.id = a.schedule_id
+        JOIN doctor doc ON doc.id = s.doctor_id
+        JOIN department dep ON dep.id = doc.department_id
+        LEFT JOIN prescription p ON p.id = (
+            SELECT MAX(p2.id)
+            FROM prescription p2
+            WHERE p2.appointment_id = a.id
+              AND p2.user_id = a.user_id
+        )
+        WHERE a.user_id = #{userId}
+        <choose>
+            <when test="status == 'pending'">
+                AND a.status IN ('pending', 'confirmed')
+            </when>
+            <when test="status == 'pending_dispense' or status == 'pending_pickup'">
+                AND a.status IN ('pending_rx_pay', 'pending_pickup')
+                AND p.status = 'paid'
+            </when>
+            <when test="status != null and status != ''">
+                AND a.status = #{status}
+            </when>
+        </choose>
+        ORDER BY a.create_time DESC, a.id DESC
+    </select>
+
+    <select id="selectPatientAppointmentDetail" resultType="com.aaa.aihealthcare.vo.PatientAppointmentVO">
+        SELECT <include refid="patientAppointmentColumns"/>
+        FROM appointment a
+        JOIN schedule s ON s.id = a.schedule_id
+        JOIN doctor doc ON doc.id = s.doctor_id
+        JOIN department dep ON dep.id = doc.department_id
+        LEFT JOIN prescription p ON p.id = (
+            SELECT MAX(p2.id)
+            FROM prescription p2
+            WHERE p2.appointment_id = a.id
+              AND p2.user_id = a.user_id
+        )
+        WHERE a.id = #{id}
+          AND a.user_id = #{userId}
+    </select>
+
+    <select id="selectOwnedAppointmentId" resultType="java.lang.Long">
+        SELECT id
+        FROM appointment
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </select>
+
+    <select id="selectPatientRecord" resultType="com.aaa.aihealthcare.vo.PatientRecordVO">
+        SELECT cr.id, cr.appointment_id, cr.doctor_id, cr.chief_complaint,
+               cr.present_illness, cr.diagnosis, cr.treatment_plan,
+               cr.doctor_advice, cr.create_time, cr.update_time
+        FROM consultation_record cr
+        JOIN appointment a ON a.id = cr.appointment_id
+        WHERE cr.appointment_id = #{appointmentId}
+          AND a.user_id = #{userId}
+        ORDER BY cr.id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectPrescriptionByAppointment" resultType="com.aaa.aihealthcare.entity.Prescription">
+        SELECT id, appointment_id, user_id, doctor_id, total_amount, status,
+               pay_method, pay_time, create_time, update_time
+        FROM prescription
+        WHERE appointment_id = #{appointmentId}
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectPrescriptionByUser" resultType="com.aaa.aihealthcare.entity.Prescription">
+        SELECT p.id, p.appointment_id, p.user_id, p.doctor_id, p.total_amount, p.status,
+               p.pay_method, p.pay_time, p.create_time, p.update_time
+        FROM prescription p
+        JOIN appointment a ON a.id = p.appointment_id AND a.user_id = p.user_id
+        WHERE p.id = #{id}
+          AND p.user_id = #{userId}
+    </select>
+
+    <select id="selectPrescriptionItems" resultType="com.aaa.aihealthcare.entity.PrescriptionItem">
+        SELECT id, prescription_id, medicine_id, medicine_name, spec, dosage,
+               frequency, days, quantity, unit_price, amount
+        FROM prescription_item
+        WHERE prescription_id = #{prescriptionId}
+        ORDER BY medicine_id ASC, id ASC
+    </select>
+
+</mapper>

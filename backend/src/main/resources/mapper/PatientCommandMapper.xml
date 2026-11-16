@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.aihealthcare.dao.PatientCommandDao">
+    <select id="lockAppointment" resultType="com.aaa.aihealthcare.entity.Appointment">
+        SELECT * FROM appointment WHERE id=#{id} AND user_id=#{userId} FOR UPDATE
+    </select>
+    <select id="findBookingForUpdate" resultType="com.aaa.aihealthcare.entity.Appointment">
+        SELECT * FROM appointment WHERE user_id=#{userId} AND schedule_id=#{scheduleId}
+        AND patient_name=#{name} AND patient_phone=#{phone} AND status &lt;&gt; 'cancelled'
+        ORDER BY id FOR UPDATE
+    </select>
+    <select id="lockSlot" resultType="com.aaa.aihealthcare.vo.BookingSlotVO">
+        SELECT s.*, d.status AS doctor_status, dep.status AS department_status,
+               d.role_type AS doctor_role_type, dep.type AS department_type
+        FROM schedule s JOIN doctor d ON d.id=s.doctor_id JOIN department dep ON dep.id=d.department_id
+        WHERE s.id=#{scheduleId} FOR UPDATE
+    </select>
+    <update id="reserveSlot">
+        UPDATE schedule SET booked_count=booked_count+1,update_time=NOW()
+        WHERE id=#{scheduleId} AND status=1 AND booked_count &lt; total_quota
+    </update>
+    <insert id="insertAppointment" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO appointment (user_id,schedule_id,patient_name,patient_phone,amount,status,remark,create_time,update_time)
+        VALUES(#{userId},#{scheduleId},#{patientName},#{patientPhone},#{amount},'unpaid',#{remark},NOW(),NOW())
+    </insert>
+    <update id="payAppointment">
+        UPDATE appointment SET status='pending',pay_method=#{method},pay_time=NOW(),update_time=NOW()
+        WHERE id=#{id} AND user_id=#{userId} AND status='unpaid'
+    </update>
+    <update id="checkIn">
+        UPDATE appointment SET status='checked_in',update_time=NOW()
+        WHERE id=#{id} AND user_id=#{userId} AND pay_time IS NOT NULL AND status IN ('pending','confirmed')
+    </update>
+    <select id="findPrescription" resultType="com.aaa.aihealthcare.entity.Prescription">
+        SELECT * FROM prescription WHERE id=#{id} AND user_id=#{userId}
+    </select>
+    <select id="lockPrescription" resultType="com.aaa.aihealthcare.entity.Prescription">
+        SELECT p.* FROM prescription p JOIN appointment a ON a.id=p.appointment_id
+        JOIN schedule s ON s.id=a.schedule_id
+        WHERE p.id=#{id} AND p.user_id=#{userId} AND a.user_id=#{userId}
+        AND p.appointment_id=#{appointmentId} AND s.doctor_id=p.doctor_id FOR UPDATE
+    </select>
+    <update id="payPrescription">
+        UPDATE prescription SET status='paid',pay_method=#{method},pay_time=NOW(),update_time=NOW()
+        WHERE id=#{id} AND user_id=#{userId} AND status='unpaid'
+    </update>
+    <update id="advanceToPickup">
+        UPDATE appointment SET status='pending_pickup',update_time=NOW()
+        WHERE id=#{appointmentId} AND user_id=#{userId} AND status='pending_rx_pay'
+    </update>
+    <select id="lockBalance" resultType="java.math.BigDecimal">
+        SELECT balance FROM sys_user WHERE id=#{userId} AND role='USER' AND status=1 AND deleted=0 FOR UPDATE
+    </select>
+    <update id="changeBalance">
+        UPDATE sys_user SET balance=balance+#{delta},update_time=NOW()
+        WHERE id=#{userId} AND role='USER' AND status=1 AND deleted=0
+        AND balance+#{delta} BETWEEN 0 AND 99999999.99
+    </update>
+    <insert id="insertLog">
+        INSERT INTO balance_log(user_id,type,amount,balance_after,order_id,pay_method,remark,create_time)
+        VALUES(#{userId},#{type},#{amount},#{balanceAfter},#{orderId},#{payMethod},#{remark},NOW())
+    </insert>
+    <select id="selectLogs" resultType="com.aaa.aihealthcare.vo.WalletLogVO">
+        SELECT id,type,amount,balance_after,order_id,pay_method,remark,create_time
+        FROM balance_log WHERE user_id=#{userId} ORDER BY create_time DESC,id DESC
+    </select>
+    <select id="countReviews" resultType="long">
+        SELECT COUNT(*) FROM appointment_review WHERE appointment_id=#{appointmentId}
+    </select>
+    <select id="selectLogsByType" resultType="com.aaa.aihealthcare.vo.WalletLogVO">
+        SELECT id,type,amount,balance_after,order_id,pay_method,remark,create_time
+        FROM balance_log WHERE user_id=#{userId}
+        <if test="type != null">AND type=#{type}</if>
+        ORDER BY create_time DESC,id DESC
+    </select>
+    <select id="findRechargeByRemark" resultType="com.aaa.aihealthcare.vo.WalletLogVO">
+        SELECT id,type,amount,balance_after,order_id,pay_method,remark,create_time FROM balance_log
+        WHERE user_id=#{userId} AND type='recharge' AND remark=#{remark} ORDER BY id LIMIT 1 FOR UPDATE
+    </select>
+    <insert id="insertReview">
+        INSERT INTO appointment_review(appointment_id,user_id,doctor_id,rating,tags,comment,create_time)
+        VALUES(#{appointmentId},#{userId},#{doctorId},#{rating},#{tags},#{comment},NOW())
+    </insert>
+</mapper>

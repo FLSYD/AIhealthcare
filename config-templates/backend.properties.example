@@ -1,0 +1,4 @@
+# 仅作模板；首次配置脚本会为本地数据库和 Redis 分别生成随机密码。
+# 当前后端保留本地隔离约束，主机、库名、账号和端口请遵循首次安装说明。
+spring.datasource.password=__MYSQL_PASSWORD__
+spring.data.redis.password=__REDIS_PASSWORD__

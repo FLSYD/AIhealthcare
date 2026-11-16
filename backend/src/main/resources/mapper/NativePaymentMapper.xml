@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.aihealthcare.dao.NativePaymentDao">
+    <select id="find" resultType="com.aaa.aihealthcare.payment.NativePayment">
+        SELECT * FROM wechat_native_payment WHERE id=#{id}
+    </select>
+    <select id="lock" resultType="com.aaa.aihealthcare.payment.NativePayment">
+        SELECT * FROM wechat_native_payment WHERE id=#{id} FOR UPDATE
+    </select>
+    <select id="lockByMerchantOrderNo" resultType="com.aaa.aihealthcare.payment.NativePayment">
+        SELECT * FROM wechat_native_payment WHERE merchant_order_no=#{orderNo} FOR UPDATE
+    </select>
+    <select id="lockByRequest" resultType="com.aaa.aihealthcare.payment.NativePayment">
+        SELECT * FROM wechat_native_payment WHERE user_id=#{userId} AND request_hash=#{hash} FOR UPDATE
+    </select>
+    <select id="lockByActiveKey" resultType="com.aaa.aihealthcare.payment.NativePayment">
+        SELECT * FROM wechat_native_payment WHERE active_key=#{key} FOR UPDATE
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO wechat_native_payment(business_type,business_id,user_id,amount_fen,merchant_order_no,
+            request_hash,active_key,state,expires_at,created_at,updated_at)
+        VALUES(#{businessType},#{businessId},#{userId},#{amountFen},#{merchantOrderNo},#{requestHash},
+            #{activeKey},#{state},#{expiresAt},NOW(),NOW())
+    </insert>
+    <update id="update">
+        UPDATE wechat_native_payment SET state=#{state},transaction_id=#{transactionId},
+            active_key=#{activeKey},code_url=#{codeUrl},prepay_id=#{prepayId},
+            error_code=#{errorCode},error_message=#{errorMessage},updated_at=NOW() WHERE id=#{id}
+    </update>
+    <update id="claimQuery">
+        UPDATE wechat_native_payment SET last_query_at=NOW()
+        WHERE id=#{id} AND state IN ('CREATING','PENDING','UNKNOWN','CLOSING')
+          AND (last_query_at IS NULL OR last_query_at &lt; DATE_SUB(NOW(),INTERVAL 3 SECOND))
+    </update>
+    <select id="selectPendingIds" resultType="long">
+        SELECT id FROM wechat_native_payment WHERE state IN ('CREATING','PENDING','UNKNOWN','CLOSING')
+        ORDER BY COALESCE(last_query_at,created_at),id LIMIT 50
+    </select>
+    <!-- 持有现有管理写锁及药品行锁后，锁定当前读未付款处方的通道预留，和 paid 预留互斥。 -->
+    <select id="selectReservedQuantities" resultType="int">
+        SELECT i.quantity FROM prescription_item i
+        JOIN prescription r ON r.id=i.prescription_id
+        JOIN wechat_native_payment p ON p.business_type='PRESCRIPTION' AND p.business_id=r.id
+        WHERE i.medicine_id=#{medicineId} AND r.status='unpaid'
+          AND p.state IN ('CREATING','PENDING','UNKNOWN','CLOSING','NEEDS_REVIEW')
+        ORDER BY p.id,i.id FOR UPDATE
+    </select>
+    <select id="countActiveAppointment" resultType="int">
+        SELECT COUNT(*) FROM wechat_native_payment p
+        LEFT JOIN prescription r ON p.business_type='PRESCRIPTION' AND r.id=p.business_id
+        WHERE (p.business_type='APPOINTMENT' AND p.business_id=#{appointmentId}
+             OR p.business_type='PRESCRIPTION' AND r.appointment_id=#{appointmentId})
+          AND p.state IN ('CREATING','PENDING','UNKNOWN','CLOSING','NEEDS_REVIEW')
+        FOR UPDATE
+    </select>
+</mapper>

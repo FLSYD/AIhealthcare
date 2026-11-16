@@ -1,0 +1,70 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea/**
+.mvn/**
+*.iws
+*.iml
+*.ipr
+.gitattributes
+mvnw
+mvnw.cmd
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### 本地密钥配置 ###
+# application-local.properties 含微信 AppSecret，仅本地使用，禁止提交。
+application-local.properties
+# 其他可能含密钥的本地配置，一律不入库
+application-*.local.properties
+*.local.properties
+.env
+.env.*
+
+### 数据库备份 ###
+# 备份文件含全库数据，不入库。
+backup/
+*.sql.gz
+
+### 上传文件 ###
+uploads/
+
+### 运行日志 ###
+logs/
+*.log
+
+### 操作系统文件 ###
+.DS_Store
+Thumbs.db
+desktop.ini
+
+### 文档文件 ###
+# 任务计划指南书需纳入版本库供团队共享，仅忽略 Word 打开的临时锁文件。
+~$*.docx
+医院预约挂号管理后台-任务计划指南书-v1.0.docx
+后端接口补齐说明.md
+后续实施计划.md

@@ -1,0 +1,8 @@
+# 默认关闭真实扫码支付。不要提交或分发老师、他人的商户凭据。
+healthcare.payment.wechat-native.enabled=false
+healthcare.payment.wechat-native.appid=${WECHAT_PAY_APP_ID:}
+healthcare.payment.wechat-native.mch-id=${WECHAT_PAY_MCH_ID:}
+healthcare.payment.wechat-native.api-key=${WECHAT_PAY_API_KEY:}
+healthcare.payment.wechat-native.cashier-signing-key=${WECHAT_PAY_SIGNING_KEY:}
+healthcare.payment.wechat-native.notify-url=http://127.0.0.1:18080/api/payments/wechat/notify
+healthcare.payment.wechat-native.cashier-base-url=http://127.0.0.1:15173

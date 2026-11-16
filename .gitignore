@@ -1,0 +1,45 @@
+# 依赖与构建输出
+**/node_modules/
+**/target/
+**/dist/
+**/miniprogram_npm/
+**/__pycache__/
+*.py[cod]
+# 本副本凭据、数据库备份和运行数据
+.local/
+.runtime/
+.tools/
+**/application-local.properties
+**/*.local.properties
+**/.env.local
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+**/project.private.config.json
+**/uploads/
+# 本机网络地址由首次配置或启动器生成
+wechat-miniprogram/miniprogram/utils/network-config.js
+# 证书、私钥和数据库运行文件
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.rdb
+*.aof
+*.sql.gz
+*.sql.zip
+*.dump
+# 默认排除临时明文导出，只允许已审查的结构与合成数据
+*.sql
+!database/schema.sql
+!database/demo-seed.sql
+!backend/src/main/resources/native-payment-schema.sql
+*.log
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini

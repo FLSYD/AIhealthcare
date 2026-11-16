@@ -1,0 +1,70 @@
+<view class="page native-page">
+  <page-nav title="微信扫码支付" />
+  <view class="native-content">
+    <view wx:if="{{ loadError }}" class="card native-status native-status--danger">
+      <text class="native-status__title">{{ loadError }}</text>
+      <van-button round plain size="small" bind:click="onReload">重新加载</van-button>
+    </view>
+
+    <view wx:elif="{{ loading }}" class="card native-status">
+      <text class="native-status__title">正在加载支付信息…</text>
+    </view>
+
+    <block wx:else>
+      <view class="card native-amount">
+        <text class="native-amount__tag">微信真实支付</text>
+        <text class="native-amount__value">¥{{ amountText }}</text>
+        <text class="native-amount__hint">将真实扣款，请核对金额</text>
+        <text wx:if="{{ expireText }}" class="native-amount__hint">二维码有效至 {{ expireText }}</text>
+      </view>
+
+      <view wx:if="{{ showQr }}" class="card native-qr">
+        <image
+          wx:if="{{ qrUrl && !qrFailed }}"
+          class="native-qr__image"
+          src="{{ qrUrl }}"
+          mode="aspectFit"
+          show-menu-by-longpress="{{ false }}"
+          binderror="onQrError"
+        />
+        <view wx:else class="native-qr__failed">
+          <text>二维码加载失败</text>
+          <van-button round plain size="small" bind:click="onRetryQr">重新加载二维码</van-button>
+        </view>
+        <text class="native-qr__tip">请用另一台设备的微信“扫一扫”扫描此码。本机不能长按识别，也不能从相册识别。</text>
+      </view>
+
+      <view class="card native-status native-status--{{ tone }}">
+        <text class="native-status__title">{{ statusText }}</text>
+        <text class="native-status__desc">{{ detailText }}</text>
+        <text wx:if="{{ netHint }}" class="native-status__net">{{ netHint }}</text>
+      </view>
+
+      <view wx:if="{{ showQr }}" class="card native-link">
+        <text class="native-link__title">没有另一台手机？</text>
+        <text class="native-link__desc">复制链接，在电脑浏览器打开收银页，再用手机微信扫描电脑上的二维码。</text>
+        <van-button round plain size="small" color="#00B894" bind:click="onCopyLink">复制电脑收银页链接</van-button>
+      </view>
+    </block>
+  </view>
+
+  <view wx:if="{{ !loading }}" class="native-actions safe-bottom">
+    <van-button
+      wx:if="{{ canClose }}"
+      block
+      round
+      plain
+      loading="{{ closing }}"
+      disabled="{{ closing }}"
+      bind:click="onCloseTap"
+    >关闭支付</van-button>
+    <van-button
+      wx:if="{{ terminal }}"
+      block
+      round
+      type="primary"
+      custom-class="btn-primary"
+      bind:click="onLeave"
+    >{{ status === 'SUCCEEDED' ? '完成' : '返回' }}</van-button>
+  </view>
+</view>

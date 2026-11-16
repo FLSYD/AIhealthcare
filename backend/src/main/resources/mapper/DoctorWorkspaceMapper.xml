@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.aihealthcare.dao.DoctorWorkspaceDao">
+
+    <select id="selectDoctor" resultType="com.aaa.aihealthcare.vo.DoctorVO">
+        SELECT d.id, d.department_id, d.name, d.title, d.gender,
+               d.avatar, d.intro, d.status, d.create_time, d.update_time,
+               dep.name AS department_name
+        FROM doctor d
+        LEFT JOIN department dep ON dep.id = d.department_id
+        WHERE d.id = #{doctorId}
+          AND d.status = 1
+    </select>
+
+    <select id="countTodayAppointments" resultType="long">
+        SELECT COUNT(*)
+        FROM appointment a
+        JOIN schedule s ON s.id = a.schedule_id
+        WHERE s.doctor_id = #{doctorId}
+          AND s.schedule_date = CURRENT_DATE
+          AND a.status &lt;&gt; 'cancelled'
+    </select>
+
+    <select id="countPendingAppointments" resultType="long">
+        SELECT COUNT(*)
+        FROM appointment a
+        JOIN schedule s ON s.id = a.schedule_id
+        WHERE s.doctor_id = #{doctorId}
+          AND s.schedule_date = CURRENT_DATE
+          AND a.status IN ('pending', 'confirmed', 'checked_in')
+    </select>
+
+    <select id="countCompletedAppointments" resultType="long">
+        SELECT COUNT(*)
+        FROM appointment a
+        JOIN schedule s ON s.id = a.schedule_id
+        WHERE s.doctor_id = #{doctorId}
+          AND a.status = 'completed'
+    </select>
+
+    <select id="selectSchedules" resultType="com.aaa.aihealthcare.vo.ScheduleVO">
+        SELECT s.id, s.doctor_id, s.schedule_date, s.time_slot,
+               s.total_quota, s.booked_count, s.status, s.create_time, s.update_time,
+               doc.name AS doctor_name, doc.title AS title,
+               dep.name AS department_name
+        FROM schedule s
+        JOIN doctor doc ON doc.id = s.doctor_id
+        LEFT JOIN department dep ON dep.id = doc.department_id
+        WHERE s.doctor_id = #{doctorId}
+        <if test="startDate != null">
+            AND s.schedule_date &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND s.schedule_date &lt;= #{endDate}
+        </if>
+        ORDER BY s.schedule_date ASC, s.time_slot ASC, s.id ASC
+    </select>
+
+    <select id="selectSchedule" resultType="com.aaa.aihealthcare.vo.ScheduleVO">
+        SELECT s.id, s.doctor_id, s.schedule_date, s.time_slot,
+               s.total_quota, s.booked_count, s.status, s.create_time, s.update_time,
+               doc.name AS doctor_name, doc.title AS title,
+               dep.name AS department_name
+        FROM schedule s
+        JOIN doctor doc ON doc.id = s.doctor_id
+        LEFT JOIN department dep ON dep.id = doc.department_id
+        WHERE s.id = #{id}
+          AND s.doctor_id = #{doctorId}
+    </select>
+
+    <select id="selectAppointments" resultType="com.aaa.aihealthcare.vo.AppointmentVO">
+        SELECT
+        <include refid="com.aaa.aihealthcare.dao.AppointmentDao.detailColumns"/>
+        FROM appointment a
+        JOIN schedule s ON s.id = a.schedule_id
+        JOIN doctor d ON d.id = s.doctor_id
+        JOIN department dep ON dep.id = d.department_id
+        LEFT JOIN prescription p ON p.appointment_id = a.id
+        WHERE s.doctor_id = #{doctorId}
+        <if test="keyword != null and keyword != ''">
+            AND (a.patient_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR a.patient_phone LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="status != null and status != ''">
+            AND a.status = #{status}
+        </if>
+        <if test="scheduleDate != null and scheduleDate != ''">
+            AND s.schedule_date = #{scheduleDate}
+        </if>
+        ORDER BY s.schedule_date DESC, s.time_slot DESC, a.id DESC
+    </select>
+
+    <select id="selectAppointment" resultType="com.aaa.aihealthcare.vo.AppointmentVO">
+        SELECT
+        <include refid="com.aaa.aihealthcare.dao.AppointmentDao.detailColumns"/>
+        FROM appointment a
+        JOIN schedule s ON s.id = a.schedule_id
+        JOIN doctor d ON d.id = s.doctor_id
+        JOIN department dep ON dep.id = d.department_id
+        LEFT JOIN prescription p ON p.appointment_id = a.id
+        WHERE a.id = #{id}
+          AND s.doctor_id = #{doctorId}
+    </select>
+
+</mapper>

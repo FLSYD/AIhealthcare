@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaa.aihealthcare.dao.PharmacyDao">
+
+    <resultMap id="PrescriptionMap" type="com.aaa.aihealthcare.vo.PrescriptionVO" autoMapping="true">
+        <id column="id" property="id"/>
+    </resultMap>
+
+    <resultMap id="ItemMap" type="com.aaa.aihealthcare.vo.PrescriptionVO$PrescriptionItemView" autoMapping="true">
+        <id column="medicine_id" property="medicineId"/>
+    </resultMap>
+
+    <sql id="prescriptionColumns">
+        p.id, p.appointment_id, p.doctor_id, p.user_id,
+        p.total_amount, p.status, p.pay_method, p.pay_time,
+        p.create_time, p.update_time,
+        a.patient_name, a.patient_phone,
+        doc.name AS doctor_name,
+        dep.name AS department_name
+    </sql>
+
+    <select id="selectPrescriptions" resultMap="PrescriptionMap">
+        SELECT
+        <include refid="prescriptionColumns"/>
+        FROM prescription p
+        JOIN appointment a ON a.id = p.appointment_id
+        LEFT JOIN doctor doc ON doc.id = p.doctor_id
+        LEFT JOIN department dep ON dep.id = doc.department_id
+        WHERE p.status = #{status}
+        <if test="keyword != null and keyword != ''">
+            AND (
+                CAST(p.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
+                OR a.patient_name LIKE CONCAT('%', #{keyword}, '%')
+                OR doc.name LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY p.update_time DESC, p.id DESC
+    </select>
+
+    <select id="selectPrescription" resultMap="PrescriptionMap">
+        SELECT
+        <include refid="prescriptionColumns"/>
+        FROM prescription p
+        JOIN appointment a ON a.id = p.appointment_id
+        LEFT JOIN doctor doc ON doc.id = p.doctor_id
+        LEFT JOIN department dep ON dep.id = doc.department_id
+        WHERE p.id = #{id}
+    </select>
+
+    <select id="selectItems" resultMap="ItemMap">
+        SELECT medicine_id, medicine_name, spec, quantity, unit_price, amount,
+               dosage, frequency, days
+        FROM prescription_item
+        WHERE prescription_id = #{prescriptionId}
+        ORDER BY id
+    </select>
+
+</mapper>
